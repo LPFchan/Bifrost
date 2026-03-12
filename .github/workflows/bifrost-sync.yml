@@ -1,0 +1,59 @@
+# Sync LPFchan repos into Vertex AI Search via Bifrost.
+# Requires repo secrets: GCP_SA_KEY, GCP_PROJECT_ID; optional: BIFROST_GCS_BUCKET, GH_PAT (for private repos).
+
+name: Bifrost sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # Triggered when target repos call repository_dispatch (e.g. on their push to main)
+  repository_dispatch:
+    types: [sync]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Bifrost
+        uses: actions/checkout@v4
+        with:
+          path: bifrost
+
+      - name: Clone repos to sync
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          set -e
+          mkdir -p repos
+          BASE="https://github.com/LPFchan"
+          if [ -n "$GH_PAT" ]; then
+            URL_PREFIX="https://x-access-token:${GH_PAT}@github.com/LPFchan"
+          else
+            URL_PREFIX="$BASE"
+          fi
+          for repo in Immogen Whimbrel Pipit Quicksilver; do
+            git clone --depth 1 "${URL_PREFIX}/${repo}.git" "repos/${repo}"
+          done
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Bifrost sync
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          BIFROST_GCS_BUCKET: ${{ secrets.BIFROST_GCS_BUCKET }}
+        run: |
+          cd bifrost
+          chmod +x bifrost.sh
+          ./bifrost.sh \
+            . \
+            ../repos/Immogen \
+            ../repos/Whimbrel \
+            ../repos/Pipit \
+            ../repos/Quicksilver
