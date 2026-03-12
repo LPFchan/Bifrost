@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# Env and secrets
+.env
+.env.*
+*.json
+!package.json
+
+# IDE / OS
+.idea/
+.DS_Store
+*.swp
+*.swo
